@@ -1,5 +1,6 @@
 package com.zyascend.amazingadapter;
 
+import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
 
@@ -14,8 +15,14 @@ import java.util.List;
 
 public abstract class AmazingAdapter<T> extends RecyclerView.Adapter{
 
+    public void setItemClickListener(ItemClickListener itemClickListener) {
+        this.itemClickListener = itemClickListener;
+
+    }
+
     public ItemClickListener itemClickListener;
-    List<T> dataList = new ArrayList<>();
+    protected List<T> dataList = new ArrayList<>();
+    public Context mContext;
 
     public void addDatas(List<T> newDatas,boolean clear){
         if (newDatas == null || newDatas.isEmpty())return;

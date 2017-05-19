@@ -1,5 +1,6 @@
 package com.zyascend.amazingadapter;
 
+import android.content.Context;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.support.v7.widget.LinearLayoutManager;
@@ -8,6 +9,7 @@ import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 /**
  * 功能：
@@ -15,40 +17,108 @@ import android.view.ViewGroup;
  * 邮箱：zyascend@qq.com
  */
 
-public abstract class MultiAdapter extends AmazingAdapter {
+public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
+
+    public static final int STATUS_LOADING = 10000;
+    public static final int STATUS_ERROR = 20000;
+    public static final int STATUS_END = 30000;
 
     private static final int TYPE_COMMON = 0;
     private static final int TYPE_FOOTER = 1;
     private static final int TYPE_HEADER = 2;
-    private int footerRes = -1;
     private int headerRes = -1;
     private boolean useHeader = false;
     private boolean useFooter = true;
     private boolean canLoadMore = true;
     private LoadMoreListener mLoadMoreListener;
-    private RecyclerView.ViewHolder holder;
+    private FrameLayout contentView;
+    private int mCurrentStatus;
+
+    private View mLoadingView;
+    private View mErrorView;
+    private View mEndView;
+
+    public void setLoadMoreListener(LoadMoreListener mLoadMoreListener) {
+        this.mLoadMoreListener = mLoadMoreListener;
+    }
+
+    public void setLoadingView(View mLoadingView) {
+        this.mLoadingView = mLoadingView;
+
+    }
+
+    public void setErrorView(View mErrorView) {
+        this.mErrorView = mErrorView;
+    }
+
+    public void setEndView(View mEndView) {
+        this.mEndView = mEndView;
+
+    }
+
+    public void setLoadingView(int mloaingViewId) {
+        this.mLoadingView = inflate(mloaingViewId);
+
+    }
+
+    public void setErrorView(int mErrorViewId) {
+        this.mErrorView = inflate(mErrorViewId);
+
+    }
+
+    public void setEndView(int mEndViewId) {
+        this.mEndView = inflate(mEndViewId);
+    }
+
+
+    public MultiAdapter(Context context) {
+        this.mContext = context;
+        mEndView = inflate(R.layout.default_endview);
+        mLoadingView = inflate(R.layout.default_loadingview);
+        mErrorView = inflate(R.layout.default_errorview);
+    }
+
+    private View inflate(int layoutId) {
+        if (mContext == null || layoutId <= 0)
+            throw new IllegalStateException("mContext or layoutId cant be null");
+        return LayoutInflater.from(mContext).inflate(layoutId,null);
+    }
 
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-
+        RecyclerView.ViewHolder holder = null;
         switch (viewType){
             case TYPE_COMMON:
                 holder = createCommonHolder(parent);
                 break;
             case TYPE_FOOTER:
-                View footer = LayoutInflater.from(parent.getContext())
-                        .inflate(footerRes == -1 ? R.layout.default_footer:footerRes,parent,false);
-                holder = new FooterHolder(footer);
+                if (contentView == null){
+                    contentView = new FrameLayout(mContext);
+                }
+                holder = new SimpleHolder(contentView);
                 break;
             case TYPE_HEADER:
+                // TODO: 2017/5/14
                 View header = LayoutInflater.from(parent.getContext())
                         .inflate(headerRes == -1 ? R.layout.default_header:headerRes,parent,false);
-                holder = new HeaderHolder(header);
+                holder = new SimpleHolder(header);
                 break;
         }
         return holder;
     }
 
+    protected boolean isCommonItemView(int viewType) {
+        return viewType != TYPE_FOOTER && viewType != TYPE_HEADER;
+    }
+
+    @Override
+    protected void bindView(RecyclerView.ViewHolder holder, int position) {
+        if (isCommonItemView(getItemViewType(position))){
+            bindCommonView(holder,position,getItemViewType(position));
+        }
+    }
+
+    protected abstract void bindCommonView(RecyclerView.ViewHolder holder, int position, int viewType);
 
     protected abstract RecyclerView.ViewHolder createCommonHolder(ViewGroup parent);
 
@@ -72,7 +142,7 @@ public abstract class MultiAdapter extends AmazingAdapter {
         int extraCount = 0;
         if (useFooter)extraCount+=1;
         if (useHeader)extraCount+=1;
-        return super.getItemCount()+extraCount;
+        return dataList.size()+extraCount;
     }
 
     @Override
@@ -120,8 +190,34 @@ public abstract class MultiAdapter extends AmazingAdapter {
     private void startLoadMore() {
         if (mLoadMoreListener != null)mLoadMoreListener.onLoadMore(false);
         //切换状态
-        ((FooterHolder)holder).toggleStatus(FooterHolder.STATUS_LOADING);
+        toggleStatus(STATUS_LOADING);
+    }
 
+    public void toggleStatus(int status) {
+        mCurrentStatus = status;
+        switch (status){
+            case STATUS_LOADING:
+                addFooterView(mLoadingView);
+                break;
+            case STATUS_ERROR:
+               addFooterView(mErrorView);
+                break;
+            case STATUS_END:
+                addFooterView(mEndView);
+                break;
+        }
+    }
+
+    private void addFooterView(View view) {
+        if (view == null)return;
+        if (contentView == null){
+            contentView = new FrameLayout(mContext);
+        }
+        contentView.removeAllViews();
+        FrameLayout.LayoutParams lp =  new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        contentView.addView(view,lp);
+        notifyItemChanged(getFooterPosition());
     }
 
     private int findLastVisibleItemPosition(RecyclerView.LayoutManager layoutManager) {
@@ -140,15 +236,6 @@ public abstract class MultiAdapter extends AmazingAdapter {
         return -1;
     }
 
-    public static int findMax(int[] lastVisiblePositions) {
-        int max = lastVisiblePositions[0];
-        for (int value : lastVisiblePositions) {
-            if (value > max) {
-                max = value;
-            }
-        }
-        return max;
-    }
     @Override
     public void onViewAttachedToWindow(RecyclerView.ViewHolder holder) {
         super.onViewAttachedToWindow(holder);
@@ -163,4 +250,7 @@ public abstract class MultiAdapter extends AmazingAdapter {
     }
 
 
+    public int getFooterPosition() {
+        return getItemCount()-1;
+    }
 }

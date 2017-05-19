@@ -5,12 +5,12 @@ import android.view.View;
 
 /**
  * 功能：
- * 作者：zyascend on 2017/5/13 15:10
+ * 作者：zyascend on 2017/5/19 23:10
  * 邮箱：zyascend@qq.com
  */
 
-public class HeaderHolder extends RecyclerView.ViewHolder {
-    public HeaderHolder(View itemView) {
+public class SimpleHolder extends RecyclerView.ViewHolder {
+    public SimpleHolder(View itemView) {
         super(itemView);
     }
 }
