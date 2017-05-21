@@ -21,18 +21,21 @@ public class MyMultiAdapter extends MultiAdapter<String> {
         super(context);
     }
 
-
     @Override
     protected void bindCommonView(RecyclerView.ViewHolder holder, int position, int viewType) {
         CommonHolder commonHolder = (CommonHolder) holder;
         commonHolder.textView.setText(dataList.get(position));
     }
 
-
     @Override
     protected RecyclerView.ViewHolder createCommonHolder(ViewGroup parent) {
         View view = LayoutInflater.from(mContext).inflate(R.layout.my_item,parent,false);
         return new CommonHolder(view);
+    }
+
+    @Override
+    protected int getViewType(int position, String s) {
+        return 0;
     }
 
     private class CommonHolder extends RecyclerView.ViewHolder {

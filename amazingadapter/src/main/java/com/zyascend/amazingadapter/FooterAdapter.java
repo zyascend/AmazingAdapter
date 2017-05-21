@@ -2,7 +2,6 @@ package com.zyascend.amazingadapter;
 
 import android.content.Context;
 import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
@@ -14,11 +13,11 @@ import android.widget.FrameLayout;
 
 /**
  * 功能：
- * 作者：zyascend on 2017/5/13 14:55
+ * 作者：zyascend on 2017/5/21 16:37
  * 邮箱：zyascend@qq.com
  */
 
-public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
+public abstract class FooterAdapter<T> extends AmazingAdapter<T>{
 
     public static final int STATUS_LOADING = 10000;
     public static final int STATUS_ERROR = 20000;
@@ -57,10 +56,14 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         this.mEndView = mEndView;
 
     }
+    private View inflate(int layoutId) {
+        if (mContext == null || layoutId <= 0)
+            throw new IllegalStateException("mContext or layoutId cant be null");
+        return LayoutInflater.from(mContext).inflate(layoutId,null);
+    }
 
     public void setLoadingView(int mloaingViewId) {
         this.mLoadingView = inflate(mloaingViewId);
-
     }
 
     public void setErrorView(int mErrorViewId) {
@@ -73,49 +76,39 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
     }
 
 
-    public MultiAdapter(Context context) {
+    public FooterAdapter(Context context) {
         this.mContext = context;
         mEndView = inflate(R.layout.default_endview);
         mLoadingView = inflate(R.layout.default_loadingview);
         mErrorView = inflate(R.layout.default_errorview);
     }
 
-    private View inflate(int layoutId) {
-        if (mContext == null || layoutId <= 0)
-            throw new IllegalStateException("mContext or layoutId cant be null");
-        return LayoutInflater.from(mContext).inflate(layoutId,null);
-    }
-
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        RecyclerView.ViewHolder holder = null;
-        Log.d(TAG, "onCreateViewHolder: viewtype = "+viewType);
-        switch (viewType){
-
+        RecyclerView.ViewHolder viewHolder = null;
+        switch (viewType) {
             case TYPE_FOOTER:
-                if (contentView == null){
+                if (contentView == null) {
                     contentView = new FrameLayout(mContext);
                 }
                 contentView.addView(mLoadingView);
-                holder = new SimpleHolder(contentView);
+                viewHolder = new SimpleHolder(contentView);
                 break;
             case TYPE_HEADER:
-                // TODO: 2017/5/14
-                View header = LayoutInflater.from(parent.getContext())
-                        .inflate(headerRes == -1 ? R.layout.default_header:headerRes,parent,false);
-                holder = new SimpleHolder(header);
+                if (contentView == null) {
+                    contentView = new FrameLayout(mContext);
+                }
+                //contentView.addView();
+                viewHolder = new SimpleHolder(contentView);
                 break;
             default:
-                holder = createCommonHolder(parent);
+                viewHolder = createCommonHolder(parent);
                 break;
         }
-        return holder;
+        return viewHolder;
     }
 
-    protected boolean isCommonItemView(int viewType) {
-        return viewType != TYPE_FOOTER && viewType != TYPE_HEADER;
-    }
-
+    protected abstract RecyclerView.ViewHolder createCommonHolder(ViewGroup parent);
     @Override
     protected void bindView(RecyclerView.ViewHolder holder, int position) {
         if (isCommonItemView(getItemViewType(position))){
@@ -123,26 +116,7 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         }
     }
 
-    protected abstract void bindCommonView(RecyclerView.ViewHolder holder, int position, int viewType);
-
-    protected abstract RecyclerView.ViewHolder createCommonHolder(ViewGroup parent);
-
-    @Override
-    public int getItemViewType(int position) {
-        if (isFooterView(position))return TYPE_FOOTER;
-        else if (isHeaderView(position))return TYPE_HEADER;
-        else return getViewType(position, dataList.get(position));
-    }
-
-    protected abstract int getViewType(int position, T t);
-
-    private boolean isHeaderView(int position) {
-        return useHeader && position == 0;
-    }
-
-    private boolean isFooterView(int position) {
-        return useFooter && (position >= getItemCount() - 1);
-    }
+    protected abstract void bindCommonView(RecyclerView.ViewHolder holder, int position, int itemViewType);
 
     @Override
     public int getItemCount() {
@@ -153,12 +127,32 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         return dataList.size()+extraCount;
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        if (isFooterView(position)) {
+            return TYPE_FOOTER;
+        }
+        return getViewType(position, dataList.get(position));
+    }
+
+    protected abstract int getViewType(int position, T t);
+
+
+    private boolean isFooterView(int position) {
+        return position >= getItemCount() - 1;
+    }
+
+    protected boolean isCommonItemView(int viewType) {
+        return viewType != TYPE_FOOTER && viewType != TYPE_HEADER;
+    }
+
 
     @Override
     public void onViewAttachedToWindow(RecyclerView.ViewHolder holder) {
         super.onViewAttachedToWindow(holder);
         if (isFooterView(holder.getLayoutPosition())) {
             ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
+
             if (lp != null && lp instanceof StaggeredGridLayoutManager.LayoutParams) {
                 StaggeredGridLayoutManager.LayoutParams p = (StaggeredGridLayoutManager.LayoutParams) lp;
                 p.setFullSpan(true);
@@ -166,7 +160,11 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         }
     }
 
-
+    /**
+     * GridLayoutManager模式时， FooterView可占据一行，判断RecyclerView是否到达底部
+     *
+     * @param recyclerView
+     */
     @Override
     public void onAttachedToRecyclerView(RecyclerView recyclerView) {
         super.onAttachedToRecyclerView(recyclerView);
@@ -194,67 +192,42 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
      * @param layoutManager
      */
     private void startLoadMore(RecyclerView recyclerView, final RecyclerView.LayoutManager layoutManager) {
-        if (mLoadMoreListener == null) {
+        if (!isAutoLoadMore || mLoadMoreListener == null) {
             return;
         }
+
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
-                Log.d(TAG, "onScrollStateChanged: ");
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     if (!isAutoLoadMore && findLastVisibleItemPosition(layoutManager) + 1 == getItemCount()) {
-                        loadMore();
+                        scrollLoadMore();
                     }
                 }
             }
 
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                Log.d(TAG, "onScrolled: ");
                 super.onScrolled(recyclerView, dx, dy);
-                int lastVisibleItem = findLastVisibleItemPosition(layoutManager);
-                Log.d(TAG, "onScrolled: last = "+lastVisibleItem +"all count = "+getItemCount());
-                if (isAutoLoadMore && lastVisibleItem + 1 == getItemCount()) {
-                    loadMore();
+                if (isAutoLoadMore && findLastVisibleItemPosition(layoutManager) + 1 == getItemCount()) {
+                    scrollLoadMore();
                 } else if (isAutoLoadMore) {
                     isAutoLoadMore = false;
                 }
             }
         });
-    }/
-    private void loadMore() {
-        Log.d(TAG, "onScroll - startLoadMore: ");
-        if (mLoadMoreListener != null)mLoadMoreListener.onLoadMore(false);
-        //切换状态
-        //toggleStatus(STATUS_LOADING);
     }
 
-    public void toggleStatus(int status) {
-        mCurrentStatus = status;
-        switch (status){
-            case STATUS_LOADING:
-                addFooterView(mLoadingView);
-                break;
-            case STATUS_ERROR:
-               addFooterView(mErrorView);
-                break;
-            case STATUS_END:
-                addFooterView(mEndView);
-                break;
+    /**
+     * 到达底部开始刷新
+     */
+    private void scrollLoadMore() {
+        if (contentView.getChildAt(0) == mLoadingView) {
+            if (mLoadMoreListener != null) {
+                mLoadMoreListener.onLoadMore(false);
+            }
         }
-    }
-
-    private void addFooterView(View view) {
-        if (view == null)return;
-        if (contentView == null){
-            contentView = new FrameLayout(mContext);
-        }
-        contentView.removeAllViews();
-        FrameLayout.LayoutParams lp =  new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        contentView.addView(view,lp);
-        //notifyItemChanged(getFooterPosition());
     }
 
     private int findLastVisibleItemPosition(RecyclerView.LayoutManager layoutManager) {
@@ -273,8 +246,16 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         return -1;
     }
 
-
-    public int getFooterPosition() {
-        return getItemCount()-1;
+    private void addFooterView(View footerView) {
+        if (footerView == null) {
+            return;
+        }
+        if (contentView == null) {
+            contentView = new FrameLayout(mContext);
+        }
+        contentView.removeAllViews();
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        contentView.addView(footerView, params);
     }
 }

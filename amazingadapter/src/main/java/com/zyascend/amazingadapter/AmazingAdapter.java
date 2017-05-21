@@ -14,7 +14,7 @@ import java.util.List;
  */
 
 public abstract class AmazingAdapter<T> extends RecyclerView.Adapter{
-
+    protected static final String TAG = "AmazingAdapter";
     public void setItemClickListener(ItemClickListener itemClickListener) {
         this.itemClickListener = itemClickListener;
 

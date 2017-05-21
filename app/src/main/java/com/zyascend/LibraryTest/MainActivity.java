@@ -5,18 +5,22 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.zyascend.amazingadapter.ItemClickListener;
 import com.zyascend.amazingadapter.LoadMoreListener;
+import com.zyascend.amazingadapter.MultiAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ItemClickListener, LoadMoreListener {
 
+    private static final String TAG = "TAG";
     private RecyclerView recyclerView;
     private MyMultiAdapter adapter;
+    private boolean isFailed = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,15 +33,18 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         adapter.setItemClickListener(this);
         recyclerView.setAdapter(adapter);
 
-        loadData();
-    }
-
-    private void loadData() {
-        List<String> data = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            data.add("DATA......");
-        }
-        adapter.addDatas(data,false);
+        //延时3s刷新列表
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                List<String> data = new ArrayList<>();
+                for (int i = 0; i < 12; i++) {
+                    data.add("item--" + i);
+                }
+                //刷新数据
+                adapter.addDatas(data,false);
+            }
+        }, 3000);
     }
 
     @Override
@@ -47,10 +54,25 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     @Override
     public void onLoadMore(boolean isReload) {
+        Log.e(TAG, "onLoadMore: called");
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                loadData();
+                if (adapter.getItemCount() > 15 && isFailed) {
+                    isFailed = false;
+                    //加载失败，更新footer view提示
+                    adapter.toggleStatus(MultiAdapter.STATUS_ERROR);
+                } else if (adapter.getItemCount() > 17) {
+                    //加载完成，更新footer view提示
+                    adapter.toggleStatus(MultiAdapter.STATUS_END);
+                } else {
+                    final List<String> data = new ArrayList<>();
+                    for (int i = 0; i < 12; i++) {
+                        data.add("item--" + (adapter.getItemCount() + i - 1));
+                    }
+                    //刷新数据
+                    adapter.addDatas(data,false);
+                }
             }
         },2000);
 
