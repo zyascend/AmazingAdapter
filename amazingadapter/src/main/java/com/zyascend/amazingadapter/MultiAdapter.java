@@ -2,18 +2,16 @@ package com.zyascend.amazingadapter;
 
 import android.content.Context;
 import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
+import android.widget.RelativeLayout;
 
 /**
- * 功能：
+ * 功能：多功能Adapter（Footer，Header，多item布局）
  * 作者：zyascend on 2017/5/13 14:55
  * 邮箱：zyascend@qq.com
  */
@@ -24,53 +22,21 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
     public static final int STATUS_ERROR = 20000;
     public static final int STATUS_END = 30000;
 
-    private static final int TYPE_COMMON = 0;
     private static final int TYPE_FOOTER = 11111;
     private static final int TYPE_HEADER = 22222;
-    private int headerRes = -1;
+
     private boolean useHeader = false;
     private boolean useFooter = true;
-    private boolean canLoadMore = true;
-    private LoadMoreListener mLoadMoreListener;
-    private FrameLayout contentView;
-    private int mCurrentStatus;
 
+    private LoadMoreListener mLoadMoreListener;
+
+    private RelativeLayout contentView;
     private View mLoadingView;
     private View mErrorView;
     private View mEndView;
-    private boolean isAutoLoadMore = true;
 
-    public void setLoadMoreListener(LoadMoreListener mLoadMoreListener) {
-        this.mLoadMoreListener = mLoadMoreListener;
-    }
+    private boolean isAutoLoadMore = false;
 
-    public void setLoadingView(View mLoadingView) {
-        this.mLoadingView = mLoadingView;
-
-    }
-
-    public void setErrorView(View mErrorView) {
-        this.mErrorView = mErrorView;
-    }
-
-    public void setEndView(View mEndView) {
-        this.mEndView = mEndView;
-
-    }
-
-    public void setLoadingView(int mloaingViewId) {
-        this.mLoadingView = inflate(mloaingViewId);
-
-    }
-
-    public void setErrorView(int mErrorViewId) {
-        this.mErrorView = inflate(mErrorViewId);
-
-    }
-
-    public void setEndView(int mEndViewId) {
-        this.mEndView = inflate(mEndViewId);
-    }
 
 
     public MultiAdapter(Context context) {
@@ -89,21 +55,21 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         RecyclerView.ViewHolder holder = null;
-        Log.d(TAG, "onCreateViewHolder: viewtype = "+viewType);
         switch (viewType){
 
             case TYPE_FOOTER:
                 if (contentView == null){
-                    contentView = new FrameLayout(mContext);
+                    contentView = new RelativeLayout(mContext);
                 }
-                contentView.addView(mLoadingView);
+                addFooterView(mLoadingView);
                 holder = new SimpleHolder(contentView);
                 break;
             case TYPE_HEADER:
-                // TODO: 2017/5/14
-                View header = LayoutInflater.from(parent.getContext())
-                        .inflate(headerRes == -1 ? R.layout.default_header:headerRes,parent,false);
-                holder = new SimpleHolder(header);
+                if (contentView == null){
+                    contentView = new RelativeLayout(mContext);
+                }
+                //addFooterView(mLoadingView);
+                holder = new SimpleHolder(contentView);
                 break;
             default:
                 holder = createCommonHolder(parent);
@@ -134,7 +100,11 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         else return getViewType(position, dataList.get(position));
     }
 
-    protected abstract int getViewType(int position, T t);
+
+    public int getViewType(int position, T t) {
+        return 0;
+    }
+
 
     private boolean isHeaderView(int position) {
         return useHeader && position == 0;
@@ -149,7 +119,6 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         int extraCount = 0;
         if (useFooter)extraCount+=1;
         if (useHeader)extraCount+=1;
-        Log.d(TAG, "getItemCount: "+ (dataList.size()+extraCount));
         return dataList.size()+extraCount;
     }
 
@@ -186,13 +155,6 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         startLoadMore(recyclerView, layoutManager);
     }
 
-
-    /**
-     * 判断列表是否滑动到底部
-     *
-     * @param recyclerView
-     * @param layoutManager
-     */
     private void startLoadMore(RecyclerView recyclerView, final RecyclerView.LayoutManager layoutManager) {
         if (mLoadMoreListener == null) {
             return;
@@ -201,7 +163,6 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
-                Log.d(TAG, "onScrollStateChanged: ");
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     if (!isAutoLoadMore && findLastVisibleItemPosition(layoutManager) + 1 == getItemCount()) {
                         loadMore();
@@ -211,10 +172,8 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
 
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                Log.d(TAG, "onScrolled: ");
                 super.onScrolled(recyclerView, dx, dy);
                 int lastVisibleItem = findLastVisibleItemPosition(layoutManager);
-                Log.d(TAG, "onScrolled: last = "+lastVisibleItem +"all count = "+getItemCount());
                 if (isAutoLoadMore && lastVisibleItem + 1 == getItemCount()) {
                     loadMore();
                 } else if (isAutoLoadMore) {
@@ -222,16 +181,12 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
                 }
             }
         });
-    }/
+    }
     private void loadMore() {
-        Log.d(TAG, "onScroll - startLoadMore: ");
         if (mLoadMoreListener != null)mLoadMoreListener.onLoadMore(false);
-        //切换状态
-        //toggleStatus(STATUS_LOADING);
     }
 
     public void toggleStatus(int status) {
-        mCurrentStatus = status;
         switch (status){
             case STATUS_LOADING:
                 addFooterView(mLoadingView);
@@ -248,13 +203,14 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
     private void addFooterView(View view) {
         if (view == null)return;
         if (contentView == null){
-            contentView = new FrameLayout(mContext);
+            contentView = new RelativeLayout(mContext);
         }
+        contentView.setPadding(0,15,0,15);
         contentView.removeAllViews();
-        FrameLayout.LayoutParams lp =  new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        RelativeLayout.LayoutParams lp =  new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
+
         contentView.addView(view,lp);
-        //notifyItemChanged(getFooterPosition());
     }
 
     private int findLastVisibleItemPosition(RecyclerView.LayoutManager layoutManager) {
@@ -273,8 +229,44 @@ public abstract class MultiAdapter<T> extends AmazingAdapter<T> {
         return -1;
     }
 
-
     public int getFooterPosition() {
         return getItemCount()-1;
     }
+
+    public void setAutoLoadMore(boolean autoLoadMore) {
+        isAutoLoadMore = autoLoadMore;
+    }
+
+    public void setLoadMoreListener(LoadMoreListener mLoadMoreListener) {
+        this.mLoadMoreListener = mLoadMoreListener;
+    }
+
+    public void setLoadingView(View mLoadingView) {
+        this.mLoadingView = mLoadingView;
+
+    }
+
+    public void setErrorView(View mErrorView) {
+        this.mErrorView = mErrorView;
+    }
+
+    public void setEndView(View mEndView) {
+        this.mEndView = mEndView;
+
+    }
+
+    public void setLoadingView(int mloaingViewId) {
+        this.mLoadingView = inflate(mloaingViewId);
+
+    }
+
+    public void setErrorView(int mErrorViewId) {
+        this.mErrorView = inflate(mErrorViewId);
+
+    }
+
+    public void setEndView(int mEndViewId) {
+        this.mEndView = inflate(mEndViewId);
+    }
+
 }

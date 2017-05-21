@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.RelativeLayout;
 
 /**
  * 功能：
@@ -31,7 +32,7 @@ public abstract class FooterAdapter<T> extends AmazingAdapter<T>{
     private boolean useFooter = true;
     private boolean canLoadMore = true;
     private LoadMoreListener mLoadMoreListener;
-    private FrameLayout contentView;
+    private RelativeLayout contentView;
     private int mCurrentStatus;
 
     private View mLoadingView;
@@ -89,14 +90,14 @@ public abstract class FooterAdapter<T> extends AmazingAdapter<T>{
         switch (viewType) {
             case TYPE_FOOTER:
                 if (contentView == null) {
-                    contentView = new FrameLayout(mContext);
+                    contentView = new RelativeLayout(mContext);
                 }
                 contentView.addView(mLoadingView);
                 viewHolder = new SimpleHolder(contentView);
                 break;
             case TYPE_HEADER:
                 if (contentView == null) {
-                    contentView = new FrameLayout(mContext);
+                    contentView = new RelativeLayout(mContext);
                 }
                 //contentView.addView();
                 viewHolder = new SimpleHolder(contentView);
@@ -251,10 +252,10 @@ public abstract class FooterAdapter<T> extends AmazingAdapter<T>{
             return;
         }
         if (contentView == null) {
-            contentView = new FrameLayout(mContext);
+            contentView = new RelativeLayout(mContext);
         }
         contentView.removeAllViews();
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         contentView.addView(footerView, params);
     }

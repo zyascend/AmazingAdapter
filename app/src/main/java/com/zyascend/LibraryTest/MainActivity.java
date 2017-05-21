@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                     data.add("item--" + i);
                 }
                 //刷新数据
-                adapter.addDatas(data,false);
+                adapter.addDatas(data,true);
             }
         }, 3000);
     }
